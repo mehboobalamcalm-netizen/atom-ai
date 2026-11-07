@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#090f1c">
+<title>ATOM AI — Shadow Prototype v0.2</title>
+<style>
+:root{color-scheme:dark;--bg:#080d18;--panel:#111b2b;--line:#26364c;--cyan:#56d9ff;--muted:#9aabc0;--good:#64e3a1;--warn:#ffca72}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at 50% -20%,#1b3451 0%,#080d18 55%);color:#edf5ff;font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:20px 16px 12px;max-width:1100px;margin:auto}
+.eyebrow{font-size:11px;letter-spacing:.18em;color:var(--cyan);font-weight:800}
+h1{font-size:clamp(28px,7vw,42px);margin:5px 0 2px;letter-spacing:.04em}
+.sub{color:var(--muted);margin:0}
+main{max-width:1100px;margin:auto;padding:8px 14px 28px;display:grid;gap:12px}
+.panel{background:linear-gradient(145deg,rgba(21,34,52,.97),rgba(12,20,33,.97));border:1px solid var(--line);border-radius:17px;padding:14px;box-shadow:0 12px 32px #0004}
+.panel h2{font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:#c7d9ed;margin:0 0 10px}
+.stage{display:grid;grid-template-columns:1fr;gap:12px}
+.view{position:relative;overflow:hidden;background:#050a12;border:1px solid #26364c;border-radius:13px;min-height:245px;aspect-ratio:4/3}
+#robotView{width:100%;height:100%;display:block}
+#video{position:absolute;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);opacity:.82}
+#overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;transform:scaleX(-1)}
+.viewlabel{position:absolute;top:9px;left:10px;background:#07101dcc;border:1px solid #33465d;border-radius:8px;padding:5px 8px;font-size:10px;letter-spacing:.12em;color:#cfeeff}
+.robotview{height:310px;aspect-ratio:auto}
+.robotview canvas{position:absolute;inset:0}
+.controls{display:flex;flex-wrap:wrap;gap:9px;margin-top:12px}
+button{border:1px solid #3b5874;border-radius:11px;padding:11px 14px;background:#14283d;color:#edf7ff;font-weight:700;font-size:14px}
+button.primary{background:linear-gradient(110deg,#087ba9,#1762a2);border-color:#38bde8}
+button:disabled{opacity:.45}
+.note{font-size:12px;color:var(--muted);margin:9px 0 0}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.stat{padding:10px;border:1px solid var(--line);border-radius:11px;background:#0a1321}
+.stat small{display:block;color:var(--muted);font-size:11px}
+.stat strong{font-size:19px;color:#eaf7ff}
+.status{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px}
+.dot{width:8px;height:8px;border-radius:50%;background:#77869a}
+.dot.good{background:var(--good);box-shadow:0 0 10px #64e3a188}
+.dot.warn{background:var(--warn)}
+footer{max-width:1100px;margin:0 auto;padding:0 16px 28px;color:var(--muted);font-size:12px}
+@media(min-width:760px){main{grid-template-columns:1.1fr .9fr}.stage{grid-template-columns:1fr}.robotview{height:370px}.stats{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<header>
+  <div class="eyebrow">HUMANOID ROBOTICS RESEARCH • DIGITAL TWIN</div>
+  <h1>ATOM <span style="color:#56d9ff">AI</span></h1>
+  <p class="sub">Armored Shadow Prototype v0.2 · Camera-based pose tracking</p>
+</header>
+<main>
+  <section class="panel">
+    <h2>01 / Human motion input</h2>
+    <div class="view">
+      <video id="video" playsinline muted></video>
+      <canvas id="overlay"></canvas>
+      <span class="viewlabel">LIVE CAMERA</span>
+    </div>
+    <div class="controls">
+      <button id="start" class="primary">Start camera & tracking</button>
+      <button id="stop" disabled>Stop</button>
+    </div>
+    <p class="note">Place your phone steadily, stand far enough back for your full body to fit, and use good lighting. Camera access requires HTTPS (or localhost).</p>
+  </section>
+
+  <section class="panel">
+    <h2>02 / Virtual Atom</h2>
+    <div class="view robotview" id="robotWrap">
+      <canvas id="robotView"></canvas>
+      <span class="viewlabel">3D SHADOW MODEL</span>
+    </div>
+    <p class="note">Armored digital boxer concept with a plated helmet, chest core, reinforced limbs and articulated joints. It does not control physical hardware.</p>
+  </section>
+
+  <section class="panel">
+    <h2>03 / System telemetry</h2>
+    <div class="status"><span class="dot" id="statusDot"></span><span id="status">Waiting for camera permission</span></div>
+    <div class="stats" style="margin-top:12px">
+      <div class="stat"><small>POSE DETECTION</small><strong id="poseState">OFFLINE</strong></div>
+      <div class="stat"><small>FRAME RATE</small><strong id="fps">—</strong></div>
+      <div class="stat"><small>LANDMARKS</small><strong id="landmarks">0 / 33</strong></div>
+      <div class="stat"><small>MODE</small><strong>SHADOW</strong></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>04 / First test protocol</h2>
+    <ol style="padding-left:20px;margin:0;color:#c8d7e8">
+      <li>Start the camera and allow permission.</li>
+      <li>Stand where your head, hands, hips and feet are visible.</li>
+      <li>Raise one arm slowly; watch the matching arm on Atom.</li>
+      <li>Try a small shoulder movement, then stop tracking.</li>
+    </ol>
+    <p class="note">This prototype is for visual research only. It has no motors, actuators or physical robot connection.</p>
+  </section>
+</main>
+<footer>ATOM AI v0.2 · Runs in your browser. Camera frames are processed locally by the page; this prototype does not upload or record video.</footer>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "@mediapipe/tasks-vision": "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { FilesetResolver, PoseLandmarker } from '@mediapipe/tasks-vision';
+
+const $ = id => document.getElementById(id);
+const video = $('video'), overlay = $('overlay'), ctx = overlay.getContext('2d');
+const startBtn = $('start'), stopBtn = $('stop');
+let landmarker = null, stream = null, running = false, lastVideoTime = -1;
+let frames = 0, lastFpsTime = performance.now(), currentFps = 0, lastDetectAt = 0;
+
+// Three.js scene
+const canvas = $('robotView');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:false, alpha:true, powerPreference:"low-power"});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
+renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
+renderer.setClearColor(0x07101c, 1);
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x07101c, 9, 22);
+const camera = new THREE.PerspectiveCamera(36, canvas.clientWidth/canvas.clientHeight, .1, 100);
+camera.position.set(0, 1.5, 9.5);
+const hemi = new THREE.HemisphereLight(0xc9edff, 0x152238, 2.0); scene.add(hemi);
+const key = new THREE.DirectionalLight(0x8bdfff, 2.2); key.position.set(4,6,7); scene.add(key);
+const rim = new THREE.PointLight(0x168cff, 18, 20); rim.position.set(-4,2,2); scene.add(rim);
+const grid = new THREE.GridHelper(8, 20, 0x24435c, 0x14263a); grid.position.y=-2.25; scene.add(grid);
+
+const metal = new THREE.MeshStandardMaterial({color:0xb7c7d4, metalness:.82, roughness:.24});
+const armor = new THREE.MeshStandardMaterial({color:0x71899d, metalness:.86, roughness:.29});
+const dark = new THREE.MeshStandardMaterial({color:0x172a3d, metalness:.72, roughness:.34});
+const trim = new THREE.MeshStandardMaterial({color:0x344f66, metalness:.8, roughness:.27});
+const glow = new THREE.MeshStandardMaterial({color:0x45d8ff, emissive:0x087da8, emissiveIntensity:2.0, metalness:.35, roughness:.2});
+const boneGeo = new THREE.CylinderGeometry(.095,.12,1,12);
+const jointGeo = new THREE.SphereGeometry(.13,16,12);
+const bones = {}, joints = {};
+const boneNames = [
+ ['shoulderL','elbowL'],['elbowL','wristL'],['shoulderR','elbowR'],['elbowR','wristR'],
+ ['shoulderL','shoulderR'],['shoulderMid','hipMid'],
+ ['hipL','hipR'],['hipL','kneeL'],['kneeL','ankleL'],['hipR','kneeR'],['kneeR','ankleR'],
+ ['shoulderMid','head'],['shoulderMid','hipMid']
+];
+const pointNames = ['head','shoulderMid','shoulderL','shoulderR','elbowL','elbowR','wristL','wristR','hipMid','hipL','hipR','kneeL','kneeR','ankleL','ankleR'];
+for(const [a,b] of boneNames){
+  const mesh = new THREE.Mesh(boneGeo, (a.includes('hip')||b.includes('hip')||a==='shoulderMid')?dark:metal);
+  scene.add(mesh); bones[a+'_'+b]=mesh;
+}
+for(const n of pointNames){
+  const m = new THREE.Mesh(jointGeo, n==='head'?glow:dark); scene.add(m); joints[n]=m;
+}
+const head = new THREE.Mesh(new THREE.SphereGeometry(.28,24,18), metal); scene.add(head);
+const visor = new THREE.Mesh(new THREE.BoxGeometry(.34,.075,.12), glow); scene.add(visor);
+const chest = new THREE.Mesh(new THREE.BoxGeometry(.72,.85,.34,1,1,1), dark); scene.add(chest);
+const pelvis = new THREE.Mesh(new THREE.BoxGeometry(.62,.34,.32), dark); scene.add(pelvis);
+// Extra armor gives Atom a compact, heavyweight boxing-robot silhouette.
+const helmet = new THREE.Mesh(new THREE.SphereGeometry(.31,18,14), armor); helmet.scale.set(1.02,1.12,.9); scene.add(helmet);
+const jaw = new THREE.Mesh(new THREE.BoxGeometry(.39,.19,.31), dark); scene.add(jaw);
+const brow = new THREE.Mesh(new THREE.BoxGeometry(.48,.075,.16), trim); scene.add(brow);
+const eyeL = new THREE.Mesh(new THREE.SphereGeometry(.045,10,8), glow); scene.add(eyeL);
+const eyeR = eyeL.clone(); scene.add(eyeR);
+const earL = new THREE.Mesh(new THREE.CylinderGeometry(.105,.105,.08,12), dark); scene.add(earL);
+const earR = earL.clone(); scene.add(earR);
+const chestArmor = new THREE.Mesh(new THREE.BoxGeometry(.91,.78,.22), armor); scene.add(chestArmor);
+const chestCore = new THREE.Mesh(new THREE.CircleGeometry(.13,18), glow); scene.add(chestCore);
+const chestStripe = new THREE.Mesh(new THREE.BoxGeometry(.56,.055,.035), trim); scene.add(chestStripe);
+const shoulderL = new THREE.Mesh(new THREE.SphereGeometry(.27,14,10), armor); shoulderL.scale.set(1.2,.86,1.08); scene.add(shoulderL);
+const shoulderR = shoulderL.clone(); scene.add(shoulderR);
+const forearmL = new THREE.Mesh(new THREE.CylinderGeometry(.19,.23,1,10), armor); scene.add(forearmL);
+const forearmR = forearmL.clone(); scene.add(forearmR);
+const thighL = new THREE.Mesh(new THREE.CylinderGeometry(.22,.25,1,10), armor); scene.add(thighL);
+const thighR = thighL.clone(); scene.add(thighR);
+const shinL = new THREE.Mesh(new THREE.CylinderGeometry(.17,.22,1,10), armor); scene.add(shinL);
+const shinR = shinL.clone(); scene.add(shinR);
+const fistL = new THREE.Mesh(new THREE.BoxGeometry(.27,.22,.28), dark); scene.add(fistL);
+const fistR = fistL.clone(); scene.add(fistR);
+const belt = new THREE.Mesh(new THREE.BoxGeometry(.72,.14,.39), trim); scene.add(belt);
+function armorSegment(mesh,a,b,width){ setSegment(mesh,a,b); const len=mesh.scale.y; mesh.scale.set(width,len,width); }
+
+function setSegment(mesh,a,b){
+  const dir = new THREE.Vector3().subVectors(b,a);
+  mesh.position.copy(a).add(b).multiplyScalar(.5);
+  mesh.scale.set(1,dir.length(),1);
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir.normalize());
+}
+function defaultPose(){
+  const p={head:[0,1.65,0],shoulderMid:[0,1.15,0],shoulderL:[-.48,1.12,0],shoulderR:[.48,1.12,0],
+  elbowL:[-.72,.58,0],elbowR:[.72,.58,0],wristL:[-.78,.05,0],wristR:[.78,.05,0],
+  hipMid:[0,-.05,0],hipL:[-.25,-.12,0],hipR:[.25,-.12,0],kneeL:[-.28,-1.05,0],kneeR:[.28,-1.05,0],
+  ankleL:[-.3,-1.95,0],ankleR:[.3,-1.95,0]};
+  updateRobot(p);
+}
+function updateRobot(p){
+  const v={}; for(const n of pointNames){const q=p[n]||[0,0,0];v[n]=new THREE.Vector3(...q);joints[n].position.copy(v[n]);}
+  for(const [a,b] of boneNames) setSegment(bones[a+'_'+b],v[a],v[b]);
+  head.position.copy(v.head); helmet.position.copy(v.head); helmet.position.y+=.015;
+  jaw.position.set(v.head.x,v.head.y-.19,v.head.z+.055);
+  brow.position.set(v.head.x,v.head.y+.045,v.head.z+.255);
+  eyeL.position.set(v.head.x-.105,v.head.y+.005,v.head.z+.265);
+  eyeR.position.set(v.head.x+.105,v.head.y+.005,v.head.z+.265);
+  earL.position.set(v.head.x-.29,v.head.y-.005,v.head.z); earR.position.set(v.head.x+.29,v.head.y-.005,v.head.z);
+  visor.position.set(v.head.x,v.head.y-.02,.25);
+  chest.position.copy(v.shoulderMid).lerp(v.hipMid,.38); chest.position.z=.02;
+  const torsoDir=new THREE.Vector3().subVectors(v.shoulderMid,v.hipMid);
+  chest.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),torsoDir.clone().normalize());
+  chestArmor.position.copy(chest.position); chestArmor.quaternion.copy(chest.quaternion);
+  chestCore.position.set(chest.position.x,chest.position.y+.02,chest.position.z+.145);
+  chestStripe.position.set(chest.position.x,chest.position.y-.22,chest.position.z+.14);
+  shoulderL.position.copy(v.shoulderL); shoulderL.position.z+=.02;
+  shoulderR.position.copy(v.shoulderR); shoulderR.position.z+=.02;
+  armorSegment(forearmL,v.elbowL,v.wristL,.9); armorSegment(forearmR,v.elbowR,v.wristR,.9);
+  armorSegment(thighL,v.hipL,v.kneeL,1.0); armorSegment(thighR,v.hipR,v.kneeR,1.0);
+  armorSegment(shinL,v.kneeL,v.ankleL,.82); armorSegment(shinR,v.kneeR,v.ankleR,.82);
+  fistL.position.copy(v.wristL); fistL.position.z+=.02; fistR.position.copy(v.wristR); fistR.position.z+=.02;
+  belt.position.copy(v.hipMid); belt.position.y-=.04;
+  pelvis.position.copy(v.hipMid); pelvis.position.y-=.02;
+}
+defaultPose();
+
+function resize(){
+  const w=canvas.clientWidth,h=canvas.clientHeight;
+  if(!w||!h)return;
+  const dpr=Math.min(devicePixelRatio,1.25); renderer.setPixelRatio(dpr); renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix();
+  const r=$('robotWrap').getBoundingClientRect(); overlay.width=Math.round(r.width*dpr); overlay.height=Math.round(r.height*dpr);
+}
+window.addEventListener('resize',resize);
+let lastRender=0; function render(now=0){requestAnimationFrame(render); if(now-lastRender<33)return; lastRender=now; renderer.render(scene,camera);} render();
+
+function setStatus(message,kind=''){
+  $('status').textContent=message;
+  $('statusDot').className='dot '+kind;
+}
+function drawPose(lm){
+  const w=overlay.width,h=overlay.height; ctx.clearRect(0,0,w,h);
+  if(!lm)return;
+  const edges=[[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28],[0,11],[0,12]];
+  ctx.lineWidth=Math.max(2,w/260);ctx.strokeStyle='#52dcff';ctx.fillStyle='#e7faff';
+  for(const [a,b] of edges){const A=lm[a],B=lm[b];if(A.visibility>.35&&B.visibility>.35){ctx.beginPath();ctx.moveTo(A.x*w,A.y*h);ctx.lineTo(B.x*w,B.y*h);ctx.stroke();}}
+  for(const p of lm){if(p.visibility>.35){ctx.beginPath();ctx.arc(p.x*w,p.y*h,Math.max(2,w/180),0,Math.PI*2);ctx.fill();}}
+}
+function point(lm,index){
+  const p=lm[index];
+  return [(0.5-p.x)*3.1,(0.5-p.y)*4.35,THREE.MathUtils.clamp(-p.z*1.4,-1.1,1.1)];
+}
+function processPose(result){
+  const lm=result.landmarks?.[0];
+  if(!lm){$('poseState').textContent='SEARCHING';$('landmarks').textContent='0 / 33';drawPose(null);return;}
+  $('poseState').textContent='TRACKING';$('landmarks').textContent=lm.filter(p=>p.visibility>.35).length+' / 33';
+  drawPose(lm);
+  const mid=(a,b)=>[(a[0]+b[0])/2,(a[1]+b[1])/2,(a[2]+b[2])/2];
+  const P={};
+  P.head=point(lm,0);
+  P.shoulderL=point(lm,11);P.shoulderR=point(lm,12);
+  P.elbowL=point(lm,13);P.elbowR=point(lm,14);
+  P.wristL=point(lm,15);P.wristR=point(lm,16);
+  P.hipL=point(lm,23);P.hipR=point(lm,24);
+  P.kneeL=point(lm,25);P.kneeR=point(lm,26);
+  P.ankleL=point(lm,27);P.ankleR=point(lm,28);
+  P.shoulderMid=mid(P.shoulderL,P.shoulderR);P.hipMid=mid(P.hipL,P.hipR);
+  updateRobot(P);
+}
+async function start(){
+  startBtn.disabled=true;
+  try{
+    setStatus('Requesting camera permission…','warn');
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:480},height:{ideal:360}},audio:false});
+    video.srcObject=stream; await video.play();
+    const rect=video.getBoundingClientRect(); const dpr=Math.min(devicePixelRatio,1.25); overlay.width=Math.round(rect.width*dpr);overlay.height=Math.round(rect.height*dpr);
+    setStatus('Loading pose AI model…','warn');
+    const vision=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+    landmarker=await PoseLandmarker.createFromOptions(vision,{
+      baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task'},
+      runningMode:'VIDEO',numPoses:1,minPoseDetectionConfidence:.55,minPosePresenceConfidence:.55,minTrackingConfidence:.55
+    });
+    running=true;lastVideoTime=-1;lastDetectAt=0;stopBtn.disabled=false;
+    setStatus('Shadow tracking active','good');
+    loop();
+  }catch(err){
+    console.error(err);setStatus('Could not start: '+(err.message||err),'warn');
+    startBtn.disabled=false;
+    if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+  }
+}
+function loop(){
+  if(!running||!landmarker)return;
+  const now=performance.now();
+  if(video.currentTime!==lastVideoTime && now-lastDetectAt>=66){
+    lastVideoTime=video.currentTime; lastDetectAt=now;
+    const result=landmarker.detectForVideo(video,now);
+    processPose(result);
+    frames++;
+    if(now-lastFpsTime>=1000){currentFps=Math.round(frames*1000/(now-lastFpsTime));$('fps').textContent=currentFps+' FPS';frames=0;lastFpsTime=now;}
+  }
+  requestAnimationFrame(loop);
+}
+function stop(){
+  running=false;
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+  video.srcObject=null;
+  if(landmarker){landmarker.close();landmarker=null;}
+  ctx.clearRect(0,0,overlay.width,overlay.height);
+  $('poseState').textContent='OFFLINE';$('landmarks').textContent='0 / 33';$('fps').textContent='—';
+  setStatus('Stopped. Camera is off.');startBtn.disabled=false;stopBtn.disabled=true;defaultPose();
+}
+startBtn.addEventListener('click',start);stopBtn.addEventListener('click',stop);
+window.addEventListener('beforeunload',stop);
+</script>
+</body>
+</html>
